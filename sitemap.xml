@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+<url><loc>http://oracle-dba.ru/</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/sitemap.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/database/oracle/11.2/linux/6.3/install/</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/database/rac/11.2/install/</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/intro.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/library.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/installation.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/startup_and_shutdown.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/instance.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/oracle_database_files.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/oracle_database_proceses.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/oracle_database_tablespaces.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/oracle_database_memory.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/oracle_database_transactions.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/oracle_database_permissions.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/oracle_database_sessions.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/oracle_database_sheduler.php</loc><changefreq>daily</changefreq></url>
+<url><loc>http://oracle-dba.ru/oracle_data_pump.php</loc><changefreq>daily</changefreq></url>
+</urlset>

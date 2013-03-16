@@ -1,0 +1,58 @@
+h1, h2, h3, h4, h5, h6 {
+    color: rgb(77, 31, 65);
+    font-family: "Open Sans",Arial,sans-serif;
+}
+
+
+
+pre{
+background: #F9FCE3;
+font-size: 13px;
+font-weight: bold;
+color: #333;
+-moz-border-radius: 5px;
+-webkit-border-radius: 5px;
+border-radius: 5px;
+text-shadow: #000;
+border: 1px solid rgb(221,221,221);
+clear:both;
+}
+
+
+div.linuxCommand
+{
+  background: #F9FCE3;
+  font-size: 13px;
+  font-weight: bold;
+  color: #333;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  text-shadow: #000;
+  border: 1px solid rgb(221,221,221);
+  clear:both;
+  padding:10px;
+  
+
+}
+
+
+
+div.linuxCode
+{
+  
+  font-size: 13px;
+  font-weight: bold;
+  color: #333;
+  -moz-border-radius: 5px;
+  -webkit-border-radius: 5px;
+  border-radius: 5px;
+  text-shadow: #000;
+  border: 1px solid rgb(221,221,221);
+  clear:both;
+  padding:2px;
+  margin:2px;
+  white-space: pre;
+
+}
+

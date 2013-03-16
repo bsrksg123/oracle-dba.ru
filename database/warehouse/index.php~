@@ -1,0 +1,476 @@
+﻿<html>
+
+<?php include_once "../../_header.php"?>
+
+
+<body>
+
+
+
+
+<br/><br/>
+
+<div class="link">
+<?php include_once "../../_pagenav.php"?>
+
+
+
+<br/><br/><br/>
+<h2>[Oracle Database Data Warehousing]:</h2>
+<br/><br/>
+
+
+Есть большая разница между данными в рабочих системах и данными в хранилище. Рабочие данные относятся к текущему состоянию компании и используются для управления повседневными операциями.
+
+Данные в хранилище являются информационными и содержат исторические записи о прошлых событиях.
+
+В хранилище данных главная операция — это запрос или чтение данных. Единственная операция модификации выполняется при загрузке новых данных. 
+
+Новые данные, как правило, добавляются в хранилище периодически. Они обычно загружаются пакетами по вечерам, или в другое время, когда хранилище не очень интенсивно используется.
+
+
+После того как данные введены в хранилище, они почти никогда не меняются, поскольку данные отражают факты какого-то события или состояния, которое присутствовало в некоторый момент времени.
+
+
+Часто до 80 % работы по созданию хранилища посвящается процессу извлечения/преобразования/загрузки (extraction/transformation/load, ETL): обнаружить данные, написать программу их извлечения, отфильтровать и очистить данные, перевести их в общую схему кодировки и загрузить в хранилище.
+
+
+Рабочие данные необходимо извлечь из рабочих систем и скопировать в промежуточную область — временное местоположение, где происходит очистка данных, их преобразование и подготовка к введению в хранилище. Иногда вы имеете полный доступ к исходным системам. Однако часто доступ серьезно ограничен, вы можете только получать извлеченные файлы данных. Рабочие сис-
+темы часто должны функционировать в режиме 24/7/52, и производительность не должна нарушаться ни в коем случае.
+
+Данные, полученные из многих систем, должны быть переведены в общий
+формат для последующего использования в хранилище. 
+
+
+Типичный подход, используемый в системах обработки транзакций, — это конструирование диаграмм связи сущностей (entity-relationship, E-R) для данного бизнеса. В конечном счете, они используются в качестве основы для создания физического проекта базы данных, поскольку многие сущности модели становятся таблицами базы.
+
+
+
+Разработчики хранилищ данных быстро обнаруживают, что модель связи сущностей, в действительности, не подходит для разработки хранилища. Ведущие авторитеты в данной области, например Ральф Кимбелл (Ralph Kimball), выступают за использование пространственной модели (dimensional model), и мы считаем, что этот подход идеален для создания хранилища.
+
+Диаграмма связи сущностей может показать нам, и весьма подробно, взаимоотношения многочисленных сущностей в нашей системе, убирая везде, где это возможно, избыточность. Результатом будет очень плоское изображение предприятия, где описываются сотни сущностей в их взаимодействии с другими сущностями. Хотя этот подход отлично соответствует миру обработки транзакций, где нам необходим именно такой уровень детализации, он слишком сложен для хранилища данных.
+
+
+Еще один фактор,
+который нужно принять во внимание, состоит в том, что диаграммы связи сущ-
+ностей как правило порождают нормализованную схему базы данных, тогда как
+в хранилищах часто используется денормализованная схема.
+
+<br/><br/>
+	
+<h2>Creating the Tablespaces and Data Files</h2>	
+
+
+
+Первый шаг — соединиться с базой данных с помощью имени пользователя с администраторскими привилегиями.
+
+connect system/manager
+
+Следующий шаг — создание табличных пространств, в которых будут располагаться данные, и связанных с ними файлов данных.
+
+-- Temporary Tablespace
+CREATE TEMPORARY TABLESPACE easy_temp
+TEMPFILE 'D:\ORACLE\PRODUCT\10.1.0\ORADATA\EASYDW\easy_temp.f'
+SIZE 10m REUSE AUTOEXTEND ON NEXT 16k ;
+
+-- Tablespace to store Materialized Views
+CREATE TABLESPACE mview
+DATAFILE 'D:\ORACLE\PRODUCT\10.1.0\ORADATA\EASYDW\easy_mview.f'
+SIZE 6m REUSE AUTOEXTEND ON
+DEFAULT STORAGE
+(INITIAL 16k NEXT 16k PCTINCREASE 0 MAXEXTENTS UNLIMITED);
+
+-- Tablespace for Dimensions
+CREATE TABLESPACE easy_dim
+DATAFILE 'D:\ORACLE\PRODUCT\10.1.0\ORADATA\EASYDW\dimensions.f'
+SIZE 5m REUSE AUTOEXTEND ON
+DEFAULT STORAGE
+(INITIAL 16k NEXT 16k PCTINCREASE 0 MAXEXTENTS UNLIMITED);
+
+-- Tablespace for the INDEXES
+CREATE TABLESPACE easy_idx
+DATAFILE 'D:\ORACLE\PRODUCT\10.1.0\ORADATA\EASYDW\index.f'
+SIZE 5m REUSE AUTOEXTEND ON
+DEFAULT STORAGE
+(INITIAL 16k NEXT 16k PCTINCREASE 0 MAXEXTENTS UNLIMITED);
+
+-- Default Tablespace
+CREATE TABLESPACE easydw_default
+DATAFILE 'D:\ORACLE\PRODUCT\10.1.0\ORADATA\EASYDW\
+easydw_default.f'
+SIZE 5m REUSE AUTOEXTEND ON
+DEFAULT STORAGE
+(INITIAL 16k NEXT 16k PCTINCREASE 0 MAXEXTENTS UNLIMITED);
+
+
+Как только созданы табличные пространства для измерений, мы можем создавать табличные пространства для таблицы фактов (purchases, покупки). Поскольку мы будем делать секционирование данных, мы должны создать табличное пространство для каждого раздела. Будут помесячные разделы для данных и еще один раздел для индексов. Здесь мы создадим разделы только для данных января месяца
+и индекса. Для создания других разделов просто повторяйте эти операции.
+
+
+-- create the 3 month tablespaces for the fact partitions
+CREATE TABLESPACE purchases_jan2003
+DATAFILE 'D:\ORACLE\PRODUCT\10.1.0\ORADATA\EASYDW\
+PURCHASESJAN2003.f'
+SIZE 5m REUSE AUTOEXTEND ON
+DEFAULT STORAGE
+(INITIAL 16k NEXT 16k PCTINCREASE 0 MAXEXTENTS UNLIMITED);
+
+-- create the 3 month tablespaces for the fact indexes
+CREATE TABLESPACE purchases_jan2003_idx
+datafile 'D:\ORACLE\PRODUCT\10.1.0\ORADATA\EASYDW\
+PURCHASESJAN2003_IDX.f'
+SIZE 3m REUSE AUTOEXTEND ON
+DEFAULT STORAGE
+(INITIAL 16k NEXT 16k PCTINCREASE 0 MAXEXTENTS UNLIMITED);
+
+
+
+<h2>Creating the Tables, Constraints, and Indexes</h2>
+
+
+Когда табличные пространства определены, можно создавать пользователя
+EASYDW, что образует схему, в которой будут сохраняться данные.
+
+
+-- create a user called EASYDW
+-- this will be the schema where the objects will reside
+connect system/manager
+
+CREATE USER easydw IDENTIFIED BY easydw
+DEFAULT TABLESPACE easydw_default
+TEMPORARY TABLESPACE temp
+PROFILE DEFAULT ACCOUNT UNLOCK;
+
+GRANT unlimited tablespace TO easydw ;
+GRANT dba TO easydw ;
+GRANT create session TO easydw;
+
+
+Пользователям даются привилегии администратора базы, чтобы они могли со-
+здавать таблицы и схемы и управлять ими
+
+
+-- now create the tables
+CONNECT easydw/easydw
+-- CUSTOMER Dimension
+CREATE TABLE easydw.customer
+(customer_id
+varchar2(10),
+city
+varchar2(15),
+state
+varchar2(10),
+postal_code
+varchar2(10),
+gender
+varchar2(1),
+region
+varchar2(15),
+country
+varchar2(20),
+tax_rate
+number,
+occupation
+varchar2(15))
+PCTFREE 0 PCTUSED 99
+TABLESPACE easy_dim
+STORAGE (INITIAL 16k NEXT 16k PCTINCREASE 0) ;
+
+
+ALTER TABLE customer
+ADD CONSTRAINT pk_customer PRIMARY KEY (customer_id)
+USING INDEX
+PCTFREE 5
+TABLESPACE indx
+STORAGE (INITIAL 16k NEXT 16k PCTINCREASE 0) ;
+
+
+Здесь мы определили ограничение, добавив его внизу. Его также можно создать
+внутри определения CREATE TABLE, но, если использовать такой подход, вы
+не сможете контролировать имя индекса (с целью быстрой проверки первичного
+ключа), которое в этом случае создается по умолчанию. Следовательно, мы сна-
+чала создаем индекс, а когда определено ограничение, оно использует этот ин-
+декс, а не создает свой собственный.
+
+
+
+-- PRODUCT Dimension
+CREATE TABLE easydw.product
+(product_id
+varchar2(8),
+product_name
+varchar2(30),
+category
+varchar2(4),
+cost_price
+number (6,2)
+constraint cost_price_not_null NOT NULL,
+sell_price
+number (6,2)
+constraint sell_price_not_null NOT NULL,
+weight
+number (6,2),
+shipping_charge
+number (5,2)
+constraint shipping_charge_not_null NOT NULL,
+manufacturer
+varchar2(20),
+supplier
+varchar2(10))
+PCTFREE 0 PCTUSED 99
+TABLESPACE easy_dim
+STORAGE (INITIAL 16k NEXT 16k PCTINCREASE 0) ;
+ALTER TABLE product
+ADD CONSTRAINT pk_product PRIMARY KEY (product_id)
+USING INDEX
+PCTFREE 5 TABLESPACE easy_idx
+STORAGE (INITIAL 16k NEXT 16k PCTINCREASE 0) ;
+
+
+
+
+Затем создается таблица TIME. В эту таблицу мы включили проверочное
+(CHECK) ограничение, обеспечивающее наличие в столбце «public_holiday»
+только значений «Y» или «N».
+
+
+
+
+
+
+
+
+-- TIME Dimension
+CREATE TABLE easydw.time
+(time_key
+month
+month_name
+quarter
+year
+day_number
+day_of_the_week
+week_number
+PCTFREE 0 PCTUSED 99
+TABLESPACE easy_dim
+STORAGE (INITIAL 16k NEXT
+date,
+number (6,0),
+varchar2(10),
+number (6,0),
+number (4,0),
+number (3,0),
+varchar2(9),
+number (2,0) )
+16k PCTINCREASE 0) ;
+
+
+ALTER TABLE time
+ADD CONSTRAINT pk_time PRIMARY KEY (time_key)
+USING INDEX
+PCTFREE 5 TABLESPACE easy_idx
+STORAGE (INITIAL 16k NEXT 16k PCTINCREASE 0) ;
+
+
+Для таблицы TODAYS_SPECIAL_OFFER мы определили первичный ключ,
+включив два столбца, а не один.
+
+
+
+-- TODAYS_SPECIAL_OFFERS Dimension
+CREATE TABLE easydw.todays_special_offers
+(product_id
+varchar2(8),
+offer_date
+date,
+special_price
+number (6,2),
+offer_price
+number (6,2))
+PCTFREE 0 PCTUSED 99
+TABLESPACE easy_dim
+STORAGE (INITIAL 16k NEXT 16k PCTINCREASE 0) ;
+
+
+
+<!--
+
+CREATE UNIQUE INDEX easydw.tso_pk_index ON todays_special_offers
+(offer_date, product_id)
+pctfree 5 tablespace easy_idx
+storage (initial 16k next 16k pctincrease 0) ;
+
+
+ALTER TABLE todays_special_offers
+ADD CONSTRAINT pk_specials PRIMARY KEY
+(offer_date,product_id );
+
+-->
+
+Теперь мы переходим к созданию наиболее важной таблицы — таблицы фактов,
+которую мы назвали PURCHASES (Покупки). Определение этой таблицы весьма
+сложно, поскольку в нее входят несколько внешних ключей (FOREIGN KEYS)
+к нескольким таблицам, идентифицируемым по условию REFERENCES (ссыл-
+ки). В таблице определяются два ограничения для столбца product_id: ограниче-
+ние NOT NULL и ограничение foreign-key. Если каждому из ограничений дать
+уникальное имя, тогда их можно применить к столбцу таблицы. Здесь мы приво-
+дим пример того, как секционировать таблицу. Более подробно это обсуждается
+в Главе 3.
+
+
+
+-- Fact Table PURCHASES
+CREATE TABLE easydw.purchases
+(product_id
+varchar2(8)
+CONSTRAINT not_null_product_id NOT NULL
+CONSTRAINT fk_product_id
+REFERENCES product(product_id),
+time_key
+date
+CONSTRAINT not_null_time NOT NULL
+CONSTRAINT fk_time
+REFERENCES time(time_key),
+customer_id
+varchar2(10)
+CONSTRAINT not_null_customer_id NOT NULL
+CONSTRAINT fk_customer_id
+REFERENCES customer(customer_id),
+ship_date
+date,
+purchase_price
+number(6,2),
+shipping_charge
+number(5,2),
+today_special_offer
+varchar2(1)
+CONSTRAINT special_offer
+CHECK (today_special_offer IN ('Y','N')) )
+PARTITION BY RANGE (time_key )
+(
+PARTITION purchases_jan2002
+VALUES LESS THAN (TO_DATE('01-02-2002', 'DD-MM-YYYY'))
+PCTFREE 0 PCTUSED 99
+STORAGE (INITIAL 64k NEXT 16k PCTINCREASE 0)
+TABLESPACE purchases_jan2002 ,
+PARTITION purchases_feb2002
+VALUES LESS THAN (TO_DATE('01-03-2002', 'DD-MM-YYYY'))
+PCTFREE 0 PCTUSED 99
+STORAGE (INITIAL 64k NEXT 16k PCTINCREASE 0)
+TABLESPACE purchases_feb2002 ,
+PARTITION purchases_mar2002
+VALUES LESS THAN (TO_DATE('01-04-2002', 'DD-MM-YYYY'))
+PCTFREE 0 PCTUSED 99
+STORAGE (INITIAL 64k NEXT 16k PCTINCREASE 0)
+TABLESPACE purchases_mar2002 );
+
+
+В этом примере создали индексы сразу после определения таблицы. В ре-
+альном хранилище данных, число индексов, создаваемых до загрузки дан-
+ных, сводится к абсолютному минимуму, чтобы время загрузки было как
+можно меньше. В результате, индексы служат только для проверки ограни-
+чений.
+
+
+
+-- Now create the indexes
+-- Partition on the Time Key Local prefixed index
+CREATE BITMAP INDEX easydw.purchase_time_index
+ON purchases (time_key ) LOCAL
+PCTFREE 5 TABLESPACE indx
+STORAGE (INITIAL 64k NEXT 64k PCTINCREASE 0);
+CREATE BITMAP INDEX easydw.purchase_product_index
+ON purchases (product_id )
+LOCAL
+PCTFREE 5 TABLESPACE indx
+STORAGE (INITIAL 64k NEXT 64k PCTINCREASE 0) ;
+CREATE INDEX easydw.purchase_customer_index
+ON purchases (customer_id )
+LOCAL
+PCTFREE 5 TABLESPACE indx
+STORAGE (INITIAL 64k NEXT 64k PCTINCREASE 0) ;
+CREATE BITMAP INDEX easydw.purchase_special_index
+ON purchases (today_special_offer )
+LOCAL
+PCTFREE 5 TABLESPACE indx
+STORAGE (INITIAL 64k NEXT 64k PCTINCREASE 0) ;
+
+
+
+<h2>Defining Security</h2>
+
+
+Следующий шаг — выделить некоторые привилегии нашему пользователю
+EASYDW. Начнем с тех, которые позволят нам использовать Summary
+Management (Управление сводками). По ходу книги мы обсудим и другие при-
+вилегии, которые нужно давать пользователям.
+
+connect system/manager
+
+-- Add privileges
+GRANT SELECT ANY TABLE TO easydw;
+GRANT EXECUTE ANY PROCEDURE TO easydw;
+
+-- Add privileges for summary management
+GRANT CREATE ANY DIMENSION TO easydw;
+GRANT ALTER ANY DIMENSION TO easydw;
+GRANT DROP ANY DIMENSION TO easydw;
+GRANT CREATE ANY MATERIALIZED VIEW TO easydw;
+GRANT ALTER ANY MATERIALIZED VIEW TO easydw;
+GRANT DROP ANY MATERIALIZED VIEW TO easydw;
+GRANT QUERY REWRITE TO easydw;
+GRANT GLOBAL QUERY REWRITE TO easydw;
+
+Нужно повторить эти шаги для каждого пользователя, и, конечно, привилегии,
+даваемые разным пользователям, будут различаться.
+
+
+
+<h2>Final Steps</h2>
+
+
+Последний этап завершается в действительности не сейчас, а после загрузки дан-
+ных. Однако мы включили его сюда, чтобы вы не забыли об этом важном шаге
+анализа таблиц и индексов. Статистические данные собираются с помощью пакета
+DBMS_STATS. Собранную пакетом статистику использует оптимизатор. Без
+этой статистики такие возможности, как Summary Management (Управление
+сводками), окажутся недоступны. Команду DBMS_STATS мы объясним в главе 3.
+
+
+
+-- Now Analyze the Tables and Indexes
+EXECUTE dbms_stats.gather_table_stats
+('EASYDW','CUSTOMER');
+EXECUTE dbms_stats.gather_table_stats
+('EASYDW','TODAYS_SPECIAL_OFFERS');
+EXECUTE dbms_stats.gather_table_stats
+('EASYDW','PRODUCT');
+EXECUTE dbms_stats.gather_index_stats
+('EASYDW','PURCHASE_CUSTOMER_INDEX');
+
+
+
+Теперь наша база данных готова. У нас есть главная основа, и в следующей главе 
+мы узнаем, как можно расширить эту основу, включая в нее и используя возможности, имеющиеся в Oracle 9i и недоступные в более ранних версиях.
+
+
+
+
+
+<br/><br/>
+<br/><br/>
+
+
+
+
+
+
+
+</div>		
+		
+	
+
+<?php include_once "../../_footer.php"?>
+
+</body>
+
+</html>
